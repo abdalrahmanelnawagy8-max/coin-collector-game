@@ -1,4 +1,4 @@
-
+!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -16,28 +16,39 @@
             text-align: center;
         }
         button {
-            width: 50px;
-            height: 50px;
-            font-size: 20px;
-            margin: 5px;
+            width: 80px;
+            height: 80px;
+            font-size: 30px;
+            margin: 10px;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.3);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+        }
+        button:active {
+            background-color: rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
 <body>
     <h1>Simple Coin Collector</h1>
-    <p>Use arrow keys to move the player (blue square) and collect yellow coins. Avoid red spikes! Score: <span id="score">0</span> | Level: <span id="level">1</span></p>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div id="controls" style="display: none; margin: 20px auto; width: 200px;">
-        <button id="up">↑</button><br>
-        <button id="left">←</button>
-        <button id="down">↓</button>
-        <button id="right">→</button>
+    <p>Use arrow keys to move the player (blue square) and collect yellow coins. Avoid red spikes! Score: <span id="score">0</span> | Level: <span id="level">1</span> | High Score: <span id="highScore">0</span></p>
+    <div style="position: relative; display: inline-block;">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="controls" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none;">
+            <button id="up">↑</button><br>
+            <button id="left">←</button>
+            <button id="down">↓</button>
+            <button id="right">→</button>
+        </div>
     </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('score');
         const levelElement = document.getElementById('level');
+        const highScoreElement = document.getElementById('highScore');
 
         let player = { x: 50, y: 50, size: 20, speed: 5 };
         let coins = [];
@@ -49,7 +60,9 @@
         let animationFrame = 0;
         let isMoving = false;
         let boss = null;
-        let bossHealth = 10;
+        let bossHealth = 0;
+        let highScore = parseInt(localStorage.getItem('highScore')) || 0;
+        highScoreElement.textContent = highScore;
 
         // Generate initial coins
         for (let i = 0; i < 5; i++) {
@@ -85,6 +98,33 @@
                 btn.onmouseup = () => keys[btn.id === 'up' ? 'ArrowUp' : btn.id === 'down' ? 'ArrowDown' : btn.id === 'left' ? 'ArrowLeft' : 'ArrowRight'] = false;
                 btn.ontouchstart = (e) => { e.preventDefault(); keys[btn.id === 'up' ? 'ArrowUp' : btn.id === 'down' ? 'ArrowDown' : btn.id === 'left' ? 'ArrowLeft' : 'ArrowRight'] = true; };
                 btn.ontouchend = () => keys[btn.id === 'up' ? 'ArrowUp' : btn.id === 'down' ? 'ArrowDown' : btn.id === 'left' ? 'ArrowLeft' : 'ArrowRight'] = false;
+            });
+
+            // Swipe controls
+            let touchStartX = 0;
+            let touchStartY = 0;
+            canvas.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            });
+            canvas.addEventListener('touchend', (e) => {
+                if (!touchStartX || !touchStartY) return;
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+                const minSwipeDistance = 50;
+                if (Math.abs(deltaX) > minSwipeDistance || Math.abs(deltaY) > minSwipeDistance) {
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                        keys[deltaX > 0 ? 'ArrowRight' : 'ArrowLeft'] = true;
+                        setTimeout(() => keys[deltaX > 0 ? 'ArrowRight' : 'ArrowLeft'] = false, 200);
+                    } else {
+                        keys[deltaY > 0 ? 'ArrowDown' : 'ArrowUp'] = true;
+                        setTimeout(() => keys[deltaY > 0 ? 'ArrowDown' : 'ArrowUp'] = false, 200);
+                    }
+                }
+                touchStartX = 0;
+                touchStartY = 0;
             });
         }
 
@@ -126,6 +166,11 @@
                     score++;
                     scoreElement.textContent = score;
                     effects.push({x: coin.x + coin.size/2, y: coin.y, text: '+1', alpha: 1, vy: -2});
+                    if (score > highScore) {
+                        highScore = score;
+                        highScoreElement.textContent = highScore;
+                        localStorage.setItem('highScore', highScore);
+                    }
                     if (boss) {
                         bossHealth--;
                         if (bossHealth <= 0) {
